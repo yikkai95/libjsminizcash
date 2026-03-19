@@ -5,10 +5,18 @@
 export interface RpcConfig {
   url: string;
   apiKey?: string;
+  maxRetries?: number;
+  retryDelay?: number;
 }
 
 export function createRpc(config: RpcConfig) {
   let idCounter = 0;
+  const maxRetries = config.maxRetries ?? 3;
+  const retryDelay = config.retryDelay ?? 500;
+
+  async function sleep(ms: number) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
 
   async function call(method: string, params: unknown[] = []): Promise<unknown> {
     const headers: Record<string, string> = {
@@ -19,20 +27,32 @@ export function createRpc(config: RpcConfig) {
       headers['x-api-key'] = config.apiKey;
     }
 
-    const res = await fetch(config.url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: ++idCounter,
-        jsonrpc: '2.0',
-        method,
-        params,
-      }),
-    });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(config.url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            id: ++idCounter,
+            jsonrpc: '2.0',
+            method,
+            params,
+          }),
+        });
 
-    const json = (await res.json()) as { result?: unknown; error?: { message: string } };
-    if (json.error) throw new Error(`RPC error: ${json.error.message}`);
-    return json.result;
+        const json = (await res.json()) as { result?: unknown; error?: { message: string } };
+        if (json.error) throw new Error(`RPC error: ${json.error.message}`);
+        if (json.result === undefined) throw new Error('RPC returned no result');
+        return json.result;
+      } catch (e) {
+        if (attempt < maxRetries) {
+          await sleep(retryDelay * (attempt + 1));
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new Error('Unreachable');
   }
 
   return {
