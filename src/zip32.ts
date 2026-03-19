@@ -5,10 +5,12 @@
 import { blake2b } from '@noble/hashes/blake2.js';
 import { concatBytes } from '@noble/hashes/utils.js';
 
-const PERSONALIZATION = new TextEncoder().encode('ZcashIP32Orchard');
+// Master key uses "ZcashIP32Orchard"; child derivation uses "Zcash_ExpandSeed" (PrfExpand)
+const MKG_PERSONAL = new TextEncoder().encode('ZcashIP32Orchard');
+const CKD_PERSONAL = new TextEncoder().encode('Zcash_ExpandSeed');
 
 function zip32Master(seed: Uint8Array): { sk: Uint8Array; chainCode: Uint8Array } {
-  const I = blake2b(seed, { dkLen: 64, personalization: PERSONALIZATION });
+  const I = blake2b(seed, { dkLen: 64, personalization: MKG_PERSONAL });
   return {
     sk: I.slice(0, 32),
     chainCode: I.slice(32, 64),
@@ -17,7 +19,7 @@ function zip32Master(seed: Uint8Array): { sk: Uint8Array; chainCode: Uint8Array 
 
 function zip32Child(
   parent: { sk: Uint8Array; chainCode: Uint8Array },
-  index: number // already includes the hardened flag (index | 0x80000000)
+  index: number // full index WITH hardened bit (0x80000000)
 ): { sk: Uint8Array; chainCode: Uint8Array } {
   const indexBytes = new Uint8Array(4);
   indexBytes[0] = index & 0xff;
@@ -26,7 +28,7 @@ function zip32Child(
   indexBytes[3] = (index >>> 24) & 0xff;
 
   const input = concatBytes(parent.chainCode, new Uint8Array([0x81]), parent.sk, indexBytes);
-  const I = blake2b(input, { dkLen: 64, personalization: PERSONALIZATION });
+  const I = blake2b(input, { dkLen: 64, personalization: CKD_PERSONAL });
   return {
     sk: I.slice(0, 32),
     chainCode: I.slice(32, 64),
@@ -34,7 +36,7 @@ function zip32Child(
 }
 
 function hardened(index: number): number {
-  return (index | 0x80000000) >>> 0;
+  return (index + 0x80000000) >>> 0;
 }
 
 /**

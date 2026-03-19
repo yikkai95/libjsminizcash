@@ -67,9 +67,9 @@ export function sinsemillaCommit(
   messageBits: boolean[],
   r: bigint
 ): PallasPointType {
-  const hashPoint = sinsemillaHash(domain, messageBits);
-  const rDomainBytes = new TextEncoder().encode(domain + '-r');
-  const R = hashToCurve('z.cash:SinsemillaQ')(rDomainBytes);
+  // CommitDomain uses "{domain}-M" for the hash and "{domain}-r" for the blinding
+  const hashPoint = sinsemillaHash(domain + '-M', messageBits);
+  const R = hashToCurve(domain + '-r')(new Uint8Array(0));
   return hashPoint.add(R.multiply(r));
 }
 

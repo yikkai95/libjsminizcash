@@ -17,11 +17,18 @@ import {
 import { sinsemillaShortCommit, fieldElementToBits } from './sinsemilla.js';
 import { deriveOrchardSpendingKeyFromSeed } from './zip32.js';
 
-// PRF^expand(sk, t) = BLAKE2b-512(key=sk, personalization="Zcash_ExpandSeed", input=t)
+// SpendAuth generator: hash_to_curve("z.cash:Orchard")("G"), NOT the standard Pallas base point
+const SPEND_AUTH_GEN = hashToCurve('z.cash:Orchard')(new TextEncoder().encode('G'));
+
+// PRF^expand(sk, t) = BLAKE2b-512(personal="Zcash_ExpandSeed", msg=sk || t)
+// Note: sk goes into the MESSAGE, NOT as the BLAKE2b key parameter.
 const EXPAND_SEED_PERSONAL = new TextEncoder().encode('Zcash_ExpandSeed');
 
 function prfExpand(sk: Uint8Array, t: Uint8Array): Uint8Array {
-  return blake2b(t, { dkLen: 64, key: sk, personalization: EXPAND_SEED_PERSONAL });
+  const msg = new Uint8Array(sk.length + t.length);
+  msg.set(sk, 0);
+  msg.set(t, sk.length);
+  return blake2b(msg, { dkLen: 64, personalization: EXPAND_SEED_PERSONAL });
 }
 
 // Interpret 64 bytes as LE integer, reduce mod n
@@ -84,39 +91,55 @@ export function orchardSpendingKeyComponents(sk: Uint8Array): {
  */
 export function deriveOrchardFVK(sk: Uint8Array): OrchardFullViewingKey {
   const { ask, nk, rivk } = orchardSpendingKeyComponents(sk);
-  const ak = PallasPoint.BASE.multiply(ask);
+  // reddsa VerificationKey = -[ask] * SpendAuthGen (negated per RedDSA convention)
+  const ak = SPEND_AUTH_GEN.multiply(ask).negate();
   return { ak, nk, rivk };
 }
 
 /**
- * Derive Orchard IncomingViewingKey from a FullViewingKey.
- * ivk = SinsemillaShortCommit_rivk("z.cash:Orchard-CommitIvk", ak_repr || nk_repr)
- * Then convert from base field to scalar field.
+ * Derive the internal rivk for change outputs (Scope::Internal).
+ * rivk_internal = ToScalar(PRF^expand(rivk, [0x83] || repr(ak) || repr(nk)))
  */
-export function deriveOrchardIVK(fvk: OrchardFullViewingKey): OrchardIncomingViewingKey {
-  // Serialize ak as 32 bytes (Zcash point encoding) and extract x-coordinate bits
+function deriveInternalRivk(fvk: OrchardFullViewingKey): bigint {
+  const rivkBytes = frToBytes(fvk.rivk);
   const akBytes = pointToBytes(fvk.ak);
-  // Clear the sign bit for the commitment input (we need the raw x-coordinate)
-  const akRepr = new Uint8Array(akBytes);
-  akRepr[31] &= 0x7f;
+  const nkBytes = fpToBytes(fvk.nk);
+  const msg = new Uint8Array(1 + 32 + 32);
+  msg[0] = 0x83;
+  msg.set(akBytes, 1);
+  msg.set(nkBytes, 33);
+  return toScalar(prfExpand(rivkBytes, msg));
+}
 
+function commitIvk(fvk: OrchardFullViewingKey, rivk: bigint): bigint {
+  const akBytes = pointToBytes(fvk.ak);
   const nkBytes = fpToBytes(fvk.nk);
 
   // Message = ak_repr bits (255) || nk_repr bits (255) = 510 bits
-  const akBits = fieldElementToBits(akRepr);
+  const akBits = fieldElementToBits(akBytes);
   const nkBits = fieldElementToBits(nkBytes);
-  const messageBits = [...akBits, ...nkBits]; // 510 bits, multiple of 10
+  const messageBits = [...akBits, ...nkBits];
 
   const ivkBase = sinsemillaShortCommit(
     'z.cash:Orchard-CommitIvk',
     messageBits,
-    fvk.rivk
+    rivk
   );
 
-  // Convert from base field element to scalar (reduce mod Fr_ORDER)
-  const ivk = ivkBase % Fr_ORDER;
-  if (ivk === 0n) throw new Error('Invalid IVK: zero');
+  return ivkBase % Fr_ORDER;
+}
 
+/**
+ * Derive Orchard IncomingViewingKey from a FullViewingKey.
+ * @param scope - 'external' for receiving addresses, 'internal' for change outputs
+ */
+export function deriveOrchardIVK(
+  fvk: OrchardFullViewingKey,
+  scope: 'external' | 'internal' = 'external'
+): OrchardIncomingViewingKey {
+  const rivk = scope === 'external' ? fvk.rivk : deriveInternalRivk(fvk);
+  const ivk = commitIvk(fvk, rivk);
+  if (ivk === 0n) throw new Error('Invalid IVK: zero');
   return { ivk };
 }
 

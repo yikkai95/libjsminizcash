@@ -20,3 +20,6 @@ export {
   deriveTransparentPublicKey,
   encodeTransparentAddress,
 } from './transparent.js';
+export { parseTransaction, type OrchardAction, type ZcashTransaction } from './transaction.js';
+export { decryptTransaction, tryDecryptAction, formatZec, type DecryptedNote } from './decrypt.js';
+export { createRpc, type RpcConfig } from './rpc.js';

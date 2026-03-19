@@ -84,7 +84,7 @@ const pallasHasher = createHasher(
     DST: 'z.cash:test-pallas_XMD:BLAKE2b_SSWU_RO_', // default, overridden per call
     p: Fp_ORDER,
     m: 1,
-    k: 128,
+    k: 257, // Pasta curves use L=64 bytes per field element (not RFC's L=48)
     expand: 'xmd',
     hash: blake2b,
   }
