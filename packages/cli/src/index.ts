@@ -9,8 +9,8 @@ import {
   encodeUnifiedAddress,
   encodeUnifiedFVK,
   type Network,
-} from './index.js';
-import { deriveTransparentAddress } from './transparent.js';
+} from '@zcash-ts/core';
+import { deriveTransparentAddress } from '@zcash-ts/core';
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)

@@ -1,0 +1,13 @@
+{
+  "name": "@zcash-ts/web",
+  "version": "0.1.0",
+  "description": "Zcash wallet web interface",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'TODO: setup web framework'",
+    "build": "echo 'TODO: setup web build'"
+  },
+  "dependencies": {
+    "@zcash-ts/core": "workspace:*"
+  }
+}

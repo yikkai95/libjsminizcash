@@ -1,0 +1,16 @@
+{
+  "name": "@zcash-ts/cli",
+  "version": "0.1.0",
+  "description": "Zcash key derivation CLI",
+  "type": "module",
+  "bin": {
+    "zcash-keys": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@zcash-ts/core": "workspace:*"
+  }
+}
