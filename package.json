@@ -1,0 +1,30 @@
+{
+  "name": "zcash-orchard-tslib",
+  "version": "0.1.0",
+  "description": "Pure TypeScript library for Zcash Orchard key derivation and address generation",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "zcash",
+    "orchard",
+    "unified-address"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
+    "@scure/base": "^2.0.0",
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
