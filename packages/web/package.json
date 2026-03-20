@@ -1,13 +1,17 @@
 {
   "name": "@zcash-ts/web",
   "version": "0.1.0",
-  "description": "Zcash wallet web interface",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo 'TODO: setup web framework'",
-    "build": "echo 'TODO: setup web build'"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@zcash-ts/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
   }
 }
